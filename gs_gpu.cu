@@ -525,10 +525,24 @@ void gs_orthogonalise_vector_nccl(struct gs_node_ctx* node_ctx, int new_vec_ind)
         }
 
         // reduce dot products
-        ncclAllReduce(data->dot_prod_uu_local, data->dot_prod_uu_global,
-                      data->dot_prod_size, ncclDouble, ncclSum, data->comm, data->stream);
-        ncclAllReduce(data->dot_prod_uv_local, data->dot_prod_uv_global,
-                      data->dot_prod_size, ncclDouble, ncclSum, data->comm, data->stream);
+        if (device_count > 1) {
+            ncclAllReduce(data->dot_prod_uu_local, data->dot_prod_uu_global,
+                          data->dot_prod_size, ncclDouble, ncclSum, data->comm,
+                          data->stream);
+            ncclAllReduce(data->dot_prod_uv_local, data->dot_prod_uv_global,
+                          data->dot_prod_size, ncclDouble, ncclSum, data->comm,
+                          data->stream);
+        } else {
+            // NCCL doesn't copy the memory for us, so we have to do it manually
+            checkCuda(cudaMemcpyAsync(
+                data->dot_prod_uu_global, data->dot_prod_uu_local,
+                data->dot_prod_size, cudaMemcpyDeviceToDevice, data->stream
+            ));
+            checkCuda(cudaMemcpyAsync(
+                data->dot_prod_uv_global, data->dot_prod_uv_local,
+                data->dot_prod_size, cudaMemcpyDeviceToDevice, data->stream
+            ));
+        }
 
         // subtract projections
         {
