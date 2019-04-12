@@ -9,10 +9,10 @@ float64_array_2d = np.ctypeslib.ndpointer(dtype=c_double, ndim=2,
                                           flags="contiguous")
 
 def _load_libgs(rebuild=True):
-    lib_filename = "libgs.so"
+    lib_filename = "build/lib/libgs.so"
     libdir = os.path.dirname(__file__)
     if rebuild:
-        args = ['make', '-C', libdir, lib_filename]
+        args = ['make', '-C', libdir, '-f', 'Makefile.Python', lib_filename]
         cp = subprocess.run(
             args,
             stdout=subprocess.PIPE,

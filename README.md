@@ -13,7 +13,7 @@ It demonstrates that there is a significant performance difference between a typ
 * [NCCL](https://github.com/NVIDIA/nccl) is required for multiple GPU support.
 
 ## Building
-The required libraries can be built with either a plain GNU makefile or CMake (which should be better at finding libraries).
+The required libraries can be built with either a plain GNU makefile or CMake (which should be better at finding libraries). The libraries will be located in `build/lib`.
 
 ### Building with a plain GNU makefile
 ```
@@ -22,7 +22,9 @@ make -f Makefile.GNU
 
 ### Building with CMake
 ```
-cmake .
+mkdir build
+cd build
+cmake ..
 make
 ```
 
