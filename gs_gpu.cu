@@ -296,10 +296,13 @@ int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
     {
         int thread_id = omp_get_thread_num();
         int device_num = thread_id;
+        cudaSetDevice(device_num);
         cudaDeviceProp deviceProp;
         checkCuda(cudaGetDeviceProperties(&deviceProp, device_num));
         int num_SMs = deviceProp.multiProcessorCount;
-        size_t global_memory_size = deviceProp.totalGlobalMem;
+        //size_t global_memory_size = deviceProp.totalGlobalMem;
+        size_t total_device_memory, free_device_memory;
+        checkCuda(cudaMemGetInfo(&free_device_memory, &total_device_memory));
 
         //int M_local = M;
         int N_local = N_limits[thread_id+1] - N_limits[thread_id];
@@ -315,10 +318,16 @@ int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
 
         #pragma omp critical
         {
-            if (global_memory_size < required_memory_size) {
-                printf("error: device %d would use %.0f / %.0f MB of global memory\n",
-                    device_num, required_memory_size/1E6, global_memory_size/1E6
-                );
+            if (free_device_memory < required_memory_size) {
+                if (total_device_memory < required_memory_size) {
+                    printf("error: device %d (%s) would use %.0f / %.0f MB of global memory\n",
+                        device_num, deviceProp.name, required_memory_size/1E6, total_device_memory/1E6
+                    );
+                } else {
+                    printf("error: device %d (%s) would use %.0f MB of global memory. Currently %.0f / %.0f MB is free.\n",
+                        device_num, deviceProp.name, required_memory_size/1E6, free_device_memory/1E6, total_device_memory/1E6
+                    );
+                }
                 insufficient_memory = 1;
             }
             threads_seen++;
@@ -580,7 +589,9 @@ int gs_init(struct gs_data** data_ptr, int M, int N, int* device_count_ptr)
     cudaDeviceProp deviceProp;
     checkCuda(cudaGetDeviceProperties(&deviceProp, device_num));
     int num_SMs = deviceProp.multiProcessorCount;
-    size_t global_memory_size = deviceProp.totalGlobalMem;
+    //size_t global_memory_size = deviceProp.totalGlobalMem;
+    size_t total_device_memory, free_device_memory;
+    checkCuda(cudaMemGetInfo(&free_device_memory, &total_device_memory));
 
     // compute global memory usage
     size_t V_size = M*N*sizeof(double);
@@ -591,7 +602,16 @@ int gs_init(struct gs_data** data_ptr, int M, int N, int* device_count_ptr)
 
     size_t required_memory_size = V_size + dot_prod_frac_size + 2*dot_prod_buffer_size;
 
-    if (global_memory_size < required_memory_size) {
+    if (free_device_memory < required_memory_size) {
+        if (total_device_memory < required_memory_size) {
+            printf("error: device %d (%s) would use %.0f / %.0f MB of global memory\n",
+                device_num, deviceProp.name, required_memory_size/1E6, total_device_memory/1E6
+            );
+        } else {
+            printf("error: device %d (%s) would use %.0f MB of global memory. Currently %.0f / %.0f MB is free.\n",
+                device_num, deviceProp.name, required_memory_size/1E6, free_device_memory/1E6, total_device_memory/1E6
+            );
+        }
         return INIT_INSUFFICIENT_MEMORY;
     }
 
