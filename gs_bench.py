@@ -318,8 +318,19 @@ else:
 
 
 if __name__ == '__main__':
-    M = int(1E6)
-    N = 300
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-M', "--length", type=float, default=1E6,
+            help="length of each vector")
+    parser.add_argument('-N', "--vectors", type=float, default=300,
+            help="number of vectors to orthogonalise")
+    args = parser.parse_args()
+
+    M = int(args.length)
+    N = int(args.vectors)
+    assert M > 0
+    assert N > 00
+
     sizeof_double = 8
     print("(M, N): {0}, array size: {1:g} MB".format(
         (M, N), M*N*sizeof_double/1E6))
@@ -345,7 +356,9 @@ if __name__ == '__main__':
             #bench_gs_numba()
             bench_gs_numba_T(mem_traffic=mem_traffic_optimal)
             bench_gs_numba_T_plain(mem_traffic=mem_traffic_optimal)
-        print("Skipping numba benchmark")
+        else:
+            print("Skipping numba benchmark")
+        print()
 
     if mem_traffic_optimal < 1000E9:
         if mem_traffic_optimal < 500E9:
