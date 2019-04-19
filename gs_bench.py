@@ -54,6 +54,22 @@ if has_numba:
                 inner_prod_uu= np.dot(V[i,:],V[i,:])
                 V[j,:] -= (inner_prod_uv/inner_prod_uu)*V[i,:]
 
+    @numba.jit(cache=True, nopython=True)
+    def gs_numba_T_plain(V, tol=1E-14):
+        M, N = V.shape
+        tol_squared = tol*tol
+        for new_vec_ind in range(1,M):
+            for i in range(new_vec_ind):
+                inner_prod_uu = 0
+                inner_prod_uv = 0
+                for k in range(N):
+                    inner_prod_uu += V[i,k]*V[i,k]
+                    inner_prod_uv += V[i,k]*V[new_vec_ind,k]
+                if inner_prod_uu > tol_squared:
+                    fac = inner_prod_uv / inner_prod_uu
+                    for k in range(N):
+                        V[new_vec_ind,k] -= fac * V[i,k]
+
 def gs_cupy(V):
     for j in range(1,N):
         inner_prods_uv = cp.sum(V[:,j,None]*V[:,:j], axis=0)
@@ -152,6 +168,22 @@ def bench_gs_numba_T(mem_traffic=None):
     V_T = V_orig.T.copy()
     pre = time.time()
     gs_numba_T(V_T)
+    post = time.time()
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
+    check_ort(V_T.T)
+    print()
+    return time_taken
+
+def bench_gs_numba_T_plain(mem_traffic=None):
+    method_desc = "numba transposed plain loops"
+    V_T = V_orig.T.copy()
+    pre = time.time()
+    gs_numba_T_plain(V_T)
     post = time.time()
     time_taken = post - pre
     msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
@@ -304,13 +336,16 @@ if __name__ == '__main__':
     if mem_traffic_optimal < 100E9:
         bench_gs_numpy()
         bench_gs_numpy_T()
-        if has_numba:
-            bench_gs_numba()
-            bench_gs_numba_T()
         pass
     else:
         print("Skipping numpy benchmark since it will take forever")
     print()
+    if has_numba:
+        if mem_traffic_optimal < 500E9:
+            #bench_gs_numba()
+            bench_gs_numba_T(mem_traffic=mem_traffic_optimal)
+            bench_gs_numba_T_plain(mem_traffic=mem_traffic_optimal)
+        print("Skipping numba benchmark")
 
     if mem_traffic_optimal < 1000E9:
         if mem_traffic_optimal < 500E9:
