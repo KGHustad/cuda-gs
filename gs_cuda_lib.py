@@ -10,7 +10,7 @@ float64_array_2d = np.ctypeslib.ndpointer(dtype=c_double, ndim=2,
                                           flags="contiguous")
 
 
-def _load_lib(rebuild=True):
+def _load_lib(rebuild=False):
     lib_filename = "build/lib/libgs_gpu.so"
     libdir = os.path.dirname(__file__)
     if rebuild:
@@ -25,6 +25,8 @@ def _load_lib(rebuild=True):
             print(cp.stderr.decode('utf-8'))
             raise ImportError("Failed to build CUDA library")
     lib_path = os.path.join(libdir, lib_filename)
+    if not os.path.isfile(lib_path):
+        raise ImportError("CUDA library was not found")
     lib = np.ctypeslib.load_library(lib_path, '.')
     has_nccl = _setup_functions(lib)
     return lib, has_nccl
