@@ -8,8 +8,17 @@ import numpy as np
 float64_array_2d = np.ctypeslib.ndpointer(dtype=c_double, ndim=2,
                                           flags="contiguous")
 
-def _load_libgs(rebuild=True):
-    lib_filename = "build/lib/libgs.so"
+def _load_libgs(rebuild=False):
+    extension = None
+    import platform
+    _os = platform.system()
+    if _os == "Linux":
+        extension = "so"
+    elif _os == "Darwin":
+        extension = "dylib"
+    else:
+        raise ValueError("Unknown OS {0}".format(_os))
+    lib_filename = "build/lib/libgs.{0}".format(extension)
     libdir = os.path.dirname(__file__)
     if rebuild:
         args = ['make', '-C', libdir, '-f', 'Makefile.Python', lib_filename]
