@@ -1,9 +1,13 @@
 build/lib/libgs.so: gs.c
+build/lib/libgs.dylib: gs.c
 build/lib/libgs_gpu.so: gs_gpu.cu
+build/lib/libgs_gpu.dylib: gs_gpu.cu
 
 ifneq ($(wildcard build/Makefile),)
 # using CMake
 build/lib/lib%.so:
+	$(MAKE) -C build $*
+build/lib/lib%.dylib:
 	$(MAKE) -C build $*
 else
 # use GNU Makefile
