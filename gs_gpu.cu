@@ -287,7 +287,7 @@ int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
 
     int N_limits[device_count+1];
     for (int i= 0; i <= device_count; i++) {
-        N_limits[i] = N_total * i / device_count;
+        N_limits[i] = (int) ((long) N_total) * i / device_count;
     }
 
     int insufficient_memory = 0;
@@ -308,11 +308,11 @@ int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
         int N_local = N_limits[thread_id+1] - N_limits[thread_id];
 
         // compute global memory usage
-        size_t V_size = M*N_local*sizeof(double);
-        size_t dot_prod_size = M*sizeof(double);
+        size_t V_size = ((size_t) M)*N_local*sizeof(double);
+        size_t dot_prod_size = ((size_t) M)*sizeof(double);
 
         int max_threadblocks_per_row_dot_kernel = threadblocks_per_row_dot_kernel(num_SMs, 1);
-        size_t dot_prod_buffer_size = M * max_threadblocks_per_row_dot_kernel * sizeof(double);
+        size_t dot_prod_buffer_size = ((size_t) M) * max_threadblocks_per_row_dot_kernel * sizeof(double);
 
         size_t required_memory_size = V_size + 2*dot_prod_size + 2*dot_prod_buffer_size;
 
@@ -594,11 +594,11 @@ int gs_init(struct gs_data** data_ptr, int M, int N, int* device_count_ptr)
     checkCuda(cudaMemGetInfo(&free_device_memory, &total_device_memory));
 
     // compute global memory usage
-    size_t V_size = M*N*sizeof(double);
-    size_t dot_prod_frac_size = M*sizeof(double);
+    size_t V_size = ((size_t) M) * N *sizeof(double);
+    size_t dot_prod_frac_size = M * sizeof(double);
 
     int max_threadblocks_per_row_dot_kernel = threadblocks_per_row_dot_kernel(num_SMs, 1);
-    size_t dot_prod_buffer_size = M * max_threadblocks_per_row_dot_kernel * sizeof(double);
+    size_t dot_prod_buffer_size = ((size_t) M) * max_threadblocks_per_row_dot_kernel * sizeof(double);
 
     size_t required_memory_size = V_size + dot_prod_frac_size + 2*dot_prod_buffer_size;
 
