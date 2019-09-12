@@ -98,12 +98,28 @@ def gs_C_omp_T(V):
 def gs_cuda_T(V, verbose=False):
     M, N = V.shape
     assert M < N, "M={0}, N={1}".format(M, N)
-    gs_cuda_lib.orthogonalise(V, verbose=verbose)
+    events = gs_cuda_lib.orthogonalise(V, verbose=verbose)
+
+    time_spent_orthogonalisation = 0
+    for desc, total_elapsed, event_time in events:
+        if desc == 'orthogonalisation':
+            time_spent_orthogonalisation = event_time
+            break
+    #time_spent_orthogonalisation = events['orthogonalisation'][2]
+    return time_spent_orthogonalisation
 
 def gs_cuda_nccl_T(V, verbose=False):
     M, N = V.shape
     assert M < N, "M={0}, N={1}".format(M, N)
-    gs_cuda_lib.orthogonalise_nccl(V, verbose=verbose)
+    events = gs_cuda_lib.orthogonalise_nccl(V, verbose=verbose)
+
+    time_spent_orthogonalisation = 0
+    for desc, total_elapsed, event_time in events:
+        if desc == 'orthogonalisation':
+            time_spent_orthogonalisation = event_time
+            break
+    #time_spent_orthogonalisation = events['orthogonalisation'][2]
+    return time_spent_orthogonalisation
 
 def check_ort(A):
     print(np.dot(A[:,0], A[:,1]), np.dot(A[:,0], A[:,2]), np.dot(A[:,1], A[:,2]))
@@ -262,10 +278,10 @@ def bench_gs_C_omp_T(mem_traffic=None):
 def bench_gs_cuda_T(mem_traffic=None, verbose=False):
     method_desc = "CUDA"
     V_T = V_orig.T.copy()
-    pre = time.time()
-    gs_cuda_T(V_T, verbose=verbose)
-    post = time.time()
-    time_taken = post - pre
+    #pre = time.time()
+    time_taken = gs_cuda_T(V_T, verbose=verbose)
+    #post = time.time()
+    #time_taken = post - pre
     msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
     if mem_traffic is not None:
         effective_bw = mem_traffic / time_taken
@@ -337,7 +353,9 @@ if __name__ == '__main__':
 
     V_orig = generate_V(M, N)
 
+    # the CPU code reads the vector being orthogonalised more often, leading to higher memory traffic
     mem_traffic_optimal = (N*N + N*N/2. + 2*N)*M*sizeof_double
+    mem_traffic_optimal_cuda = (N*N + 2*N)*M*sizeof_double
     bytes_two_vectors = 2*M*sizeof_double
     print("Optimal memory traffic is {0:g} GB, assuming {1:.0f} MB cannot fit in cache".format(
         mem_traffic_optimal/1E9,
@@ -372,9 +390,9 @@ if __name__ == '__main__':
     print()
 
     if has_gs_cuda_lib:
-        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal, verbose=True)
+        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal_cuda, verbose=True)
         if gs_cuda_lib.has_nccl:
-            bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal, verbose=True)
+            bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal_cuda, verbose=True)
         print()
 
     if has_cupy:

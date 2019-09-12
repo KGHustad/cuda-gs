@@ -103,6 +103,16 @@ def log_timestamp(timestamp_start, desc):
     time_elapsed = time.time() - timestamp_start
     print("[{0:6.3f} s]: {1}".format(time_elapsed, desc))
 
+def log_event(timestamp_start, desc, events):
+    timestamp_prev = timestamp_start
+    if len(events) > 0:
+        timestamp_prev += events[-1][1]
+    time_elapsed = time.time() - timestamp_start
+    event_time = time.time() - timestamp_prev
+
+    event = (desc, time_elapsed, event_time)
+    events.append(event)
+
 def orthogonalise(V, verbose=False):
     timestamp_start = time.time()
     assert len(V.shape) == 2
@@ -118,12 +128,16 @@ def orthogonalise(V, verbose=False):
     device_count = c_int(0)
     device_count_ptr = ctypes.byref(device_count)
 
+    events = []
+
     _lib.gs_init(data_ptr, M, N, device_count_ptr)
+    log_event(timestamp_start, "init", events)
     if verbose:
         #print("init done")
         log_timestamp(timestamp_start, "init done")
 
     _lib.gs_copy_from_host(data_placeholder, V)
+    log_event(timestamp_start, "copy from host", events)
     if verbose:
         #print("copy from host done")
         log_timestamp(timestamp_start, "copy from host done")
@@ -132,19 +146,24 @@ def orthogonalise(V, verbose=False):
     for new_vec_ind in range(1, M):
         _lib.gs_orthogonalise_vector(data_placeholder, new_vec_ind)
     timestamp_orthogonalisation_done = time.time()
+    log_event(timestamp_start, "orthogonalisation", events)
     if verbose:
         time_elapsed_orthogonalisation = timestamp_orthogonalisation_done - timestamp_orthogonalisation_start
         desc = "orthogonalisation done in {0:g} seconds".format(time_elapsed_orthogonalisation)
         log_timestamp(timestamp_start, desc)
 
     _lib.gs_copy_to_host(data_placeholder, V)
+    log_event(timestamp_start, "copy to host", events)
     if verbose:
         log_timestamp(timestamp_start, "copy to host done")
 
 
     _lib.gs_cleanup(data_placeholder)
+    log_event(timestamp_start, "cleanup", events)
     if verbose:
         log_timestamp(timestamp_start, "cleanup done")
+
+    return events
 
 def orthogonalise_nccl(V, verbose=False):
     if not has_nccl:
@@ -163,12 +182,16 @@ def orthogonalise_nccl(V, verbose=False):
     device_count = c_int(0)
     device_count_ptr = ctypes.byref(device_count)
 
+    events = []
+
     _lib.gs_init_nccl(data_ptr, M, N, device_count_ptr)
+    log_event(timestamp_start, "init", events)
     if verbose:
         log_timestamp(timestamp_start, "init done")
     print("Using {0} devices".format(device_count.value))
 
     _lib.gs_copy_from_host_nccl(data_placeholder, V)
+    log_event(timestamp_start, "copy from host", events)
     if verbose:
         log_timestamp(timestamp_start, "copy from host done")
 
@@ -176,15 +199,20 @@ def orthogonalise_nccl(V, verbose=False):
     for new_vec_ind in range(1, M):
         _lib.gs_orthogonalise_vector_nccl(data_placeholder, new_vec_ind)
     timestamp_orthogonalisation_done = time.time()
+    log_event(timestamp_start, "orthogonalisation", events)
     if verbose:
         time_elapsed_orthogonalisation = timestamp_orthogonalisation_done - timestamp_orthogonalisation_start
         desc = "orthogonalisation done in {0:g} seconds".format(time_elapsed_orthogonalisation)
         log_timestamp(timestamp_start, desc)
 
     _lib.gs_copy_to_host_nccl(data_placeholder, V)
+    log_event(timestamp_start, "copy to host", events)
     if verbose:
         log_timestamp(timestamp_start, "copy to host done")
 
     _lib.gs_cleanup_nccl(data_placeholder)
+    log_event(timestamp_start, "cleanup", events)
     if verbose:
         log_timestamp(timestamp_start, "cleanup done")
+
+    return events
